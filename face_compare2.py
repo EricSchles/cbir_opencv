@@ -1,13 +1,21 @@
 import cv2
-import cv
+#import cv
 import numpy as np
 from glob import glob
 import os
 from sys import argv
 from PIL import Image
-
+import math
 def path_append(full_path,new_dir):
     return "/".join(full_path.split("/")[:-1])+"/"+new_dir+full_path.split("/")[-1]
+
+def median(listing):
+    if len(listing)%2 == 0:
+        middle = len(listing)/2
+        return (listing[middle-1] + listing[middle+1])/2
+    else:
+        return listing[math.floor(len(listing)/2)]
+        
 
 def normalize_cv(image1,image2,compare_dir):
     #img = Image.open(image1)
@@ -96,12 +104,12 @@ normalize_cv(filename,compare,argv[3])
 
 for Dir in ["wide_dir/","long_dir/","equal_dir/"]:
     new_filename = path_append(filename,Dir)
-    face = cv.LoadImage(new_filename, cv2.IMREAD_GRAYSCALE)
+    face = cv2.imread(new_filename,0)
     face,label = face[:, :], 1
 
     #load comparison face
     new_compare = path_append(compare,Dir)
-    compare_face = cv.LoadImage(new_compare, cv2.IMREAD_GRAYSCALE)
+    compare_face = cv2.imread(new_compare, 0)
     compare_face, compare_label = compare_face[:,:], 2
 
     images,labels = [],[]
@@ -117,7 +125,7 @@ for Dir in ["wide_dir/","long_dir/","equal_dir/"]:
 
     print Dir+"\n\n"
     test_images = glob(argv[3]+Dir+"*")
-    test_images = [(np.asarray(cv.LoadImage(img,cv2.IMREAD_GRAYSCALE)[:,:]),img) for img in test_images]
+    test_images = [(np.asarray(cv2.imread(img,0)[:,:]),img) for img in test_images]
     possible_matches = []
     for t_face,name in test_images:
         t_labels = []
@@ -127,7 +135,6 @@ for Dir in ["wide_dir/","long_dir/","equal_dir/"]:
                 possible_matches.append({"name":name,"confidence":confidence,"recognizer":recognizer})
             except:
                 continue
-
     minimum = 400
     epsilon = 1
     close_enough = []
@@ -139,10 +146,13 @@ for Dir in ["wide_dir/","long_dir/","equal_dir/"]:
                 minimum = m["confidence"]
     minimum += epsilon
     average /= float(len(possible_matches))
+    Median = median([m["confidence"] for m in possible_matches])
     for m in possible_matches:
         if m["recognizer"] == "lbph":
             if m["confidence"] == minimum or m["confidence"] < (minimum + average):
                 close_enough.append(m)
+            #if m["confidence"] < Median:
+            #    close_enough.append(m)
 
     close_enough = sorted(close_enough)
     for i in close_enough:
